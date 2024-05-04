@@ -1,0 +1,594 @@
+---
+title: "Analyzing Pizza Ordering Trends for strategic business decisions"
+author : "Ramana Bhaskar Kosuru, Faisal Alqahtani, Chaya Chandana Doddaiggaluru Appajigowda"
+date: "2024-03-25"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = F, result = "hide", message = F)
+options(scientific=T, digits = 5)
+
+library(ezids)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+## Introduction
+<p>
+Pizza consumption has exploded in the U.S with the Introduction of pizza chains and since then they have been a part of American culture. Research shows that 13% of the US population consumes pizza on any given day. In order to get an understanding of how and why pizzas are getting popular day by day, we felt it is a good idea to work on some fictitious data on Pizza sales before working on real data from Pizza places. To understand how the order values, frequency of orders and the revenue changes based on the date and time of the day, our team searched for a data set that is well suited. 
+
+We selected a year’s worth of sales from a fictitious pizza place, including the date and time of each order and the pizzas served, with additional details on the type, size, quantity and price. The data set contains pizza sales data for the year 2015 in this fictitious pizza place. It has details of over 48000 pizza orders which helped us with our project as having a larger sample size is always better. Initially the variables are distributed over multiple data sets. Our team performed pre-processing and joined all the data sets into one that consists of 48620 observations of 9 variables. There were no redundant variables in the data set and we made use of almost all the variables. 
+
+We feel there are no limitations for the data set we selected and there are variables like time and date that could help us perform some time series analysis in the future. 
+
+The information was gathered from https://mavenanalytics.io/data-playground?pageSize=10&search=sales and we have joined all the csv files to create the required data set. 
+
+Our mission is to unveil the key factors that significantly influence a pizza ordering trends, analyzing the blend of sizes and preferences that resonate most with the consumer palette and see if we could help the restraunts with their business development by giving the insights from our research. For restaurateurs and culinary strategists, this knowledge is not just insightful, it is the cornerstone of gastronomic success, guiding their endeavors in the fiercely competitive arena of food and hospitality. This exploration is not merely academic it's a voyage where every slice of data contributes to a larger understanding, transforming raw information into a feast of opportunity.
+
+
+</p>
+
+
+## Description of Dataset Variables
+
+* `order_details_id `:  Unique identifier for each pizza placed within each order 
+
+* `order_id `: Unique identifier for each order placed by a table
+
+* `pizza_id `: Type of the pizza ordered to its size (Ex:hawaiian_m)
+
+* `quantity `: Quantity ordered for each pizza of the same type and size
+
+* `date `: Date the order was placed (entered into the system prior to cooking & serving)
+
+* `time `: Time the order was placed (entered into the system prior to cooking & serving)
+
+* `pizza_type_id `: Type of the pizza ordered (thai_ckn)
+
+* `size `: Size of the pizza (Small, Medium, Large, X Large, or XX Large)
+
+* `price `:  Price of the pizza in USD
+
+Quantitative variables : 
+
+* `order_details_id `
+
+* `order_id `
+
+* `quantity `
+
+* `date `
+
+* `time`
+
+* `price`
+
+Categorical Variables:
+
+* `pizza_id `
+
+* `pizza_type_id `
+
+* `size `
+
+
+
+## Descriptive Statistics
+
+We have done some descriptive statistics on our data set to understand the characteristics of it.
+
+
+```{r results=TRUE}
+pizza_sales = data.frame(read.csv("Pizza_Sales.csv"))
+
+# Descriptive statistics for the pizza sales data set
+summary(pizza_sales[c("order_details_id", "order_id", "pizza_id", "quantity", "date", "time", "pizza_type_id", "size", "price")])
+
+str(pizza_sales)
+```
+
+The main measure of central tendency we wanted to know is the mean. 
+*The mean price of the pizzas is 16.49 USD*
+
+## Distribution of orders by size
+```{r}
+
+pizza_size_counts <- pizza_sales %>%
+  count(size) %>%
+  arrange(desc(n))
+
+print(pizza_size_counts)
+
+ggplot(data=pizza_size_counts, aes(x=size, y=n, fill=size)) +
+  geom_bar(stat="identity") +
+  labs(title="", x="Size", y="Frequency") +
+  theme_minimal()
+
+
+  
+
+```
+
+The graph can help understand customer preferences for pizza types and sizes in dataset.Popularity of Pizza Types identify the most popular pizza types based on the frequency counts and Popularity of Pizza Sizes identify the most popular pizza sizes based on the frequency counts. Relationship Between Type and Size are separate, by analyze them together to see if there is a relationship between pizza type and size. For instance, customers tend to order larger pizzas for certain types of pizzas (e.g., more toppings) and smaller pizzas for others. It shows the frequency of the top 10 most popular pizza types ordered, it shows the pizza type and the frequency (number of times ordered). The bars are colored differently to distinguish between the different pizza types. It shows the frequency of each pizza size ordered (S, M, L, XL, XXL). where it shows the size of the pizza, and the frequency. The bars are colored differently to distinguish between the different sizes.It groups the data by size and calculates the total quantity sold for each size. The output table shows the size (e.g., L) and the total number of pizzas sold in that size (e.g., 18,526 for size L).
+
+
+
+
+## Divergence between popular Pizza choices and Revenue Leaders
+
+### > Top 5 best selling Pizza varieties
+
+```{r}
+pizza_type_preferences <- pizza_sales %>%
+  group_by(pizza_type_id) %>%
+  summarise(total_orders = n(),
+            average_order_value = mean(price * quantity, na.rm = TRUE)) %>%
+  arrange(desc(total_orders))
+
+# visualize the top 5 pizza types
+top_pizza_types <- head(pizza_type_preferences, 5)
+
+
+
+ggplot(top_pizza_types, aes(x=reorder(pizza_type_id, total_orders), y=total_orders)) +
+  geom_bar(stat="identity", fill="coral") +
+  labs(title="Top 5 Best selling pizza types", x="Pizza Type", y="Total Orders") +
+  coord_flip()
+
+
+```
+
+
+The graph shows the top 5 best-selling pizza types by total orders.Larger pizzas typically cost more than smaller ones. This price difference can contribute to a higher total revenue from larger sizes even if they are sold less frequently compared to smaller pizzas.Classic pizza is the most popular, followed by BBQ chicken,pepperoni and then Hawaiian. thai_ckn pizza comes in last.It appears that classic and pepperoni pizza are significantly more popular than the other three types on the list. There could be a few reasons for this. Classic pizza may be a basic cheese pizza, which might be popular to a wide audience with no strong preferences. Pepperoni is another crowd-pleasing option that many people enjoy.Hawaiian pizza is a more controversial choice, but it seems to be more popular than the Thai chicken pizza. This could be because Hawaiian pizza has been around for a longer time and is more widely recognized.There are many other varieties of pizza available, and these are more popular
+
+### > Top 5 High revenue Pizza varieties
+
+```{r}
+
+
+# Given code to calculate pizza revenue
+pizza_revenue <- pizza_sales %>%
+  mutate(total_revenue = quantity * price) %>%  
+  group_by(pizza_type_id) %>%
+  summarize(total_quantity_sold = sum(quantity),
+            total_revenue = sum(total_revenue),
+            .groups = 'drop')  
+
+# Find the top 5 revenue-generating pizzas
+top_5_pizzas <- pizza_revenue %>%
+  top_n(5, total_revenue)
+
+# Print the top 5 revenue-generating pizzas
+print(top_5_pizzas)
+
+# Plot top 5 revenue-generating pizzas
+ggplot(top_5_pizzas, aes(x = reorder(pizza_type_id, total_revenue), y = total_revenue)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Top 5 Revenue-Generating Pizzas",
+       x = "Pizza Type",
+       y = "Total Revenue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+```
+
+The graph displays the revenue generated by the top 5 pizza types. The revenue is measured in units that are not labelled on the axis. This makes it impossible to determine the exact amount of revenue each pizza type brings in but allows for a comparison of their relative popularity.Classic Pizza tops the chart, indicating it is the biggest revenue generator among the five. Classic pizza could represent a basic cheese pizza, which might be preferred by a broad audience with no strong flavor preferences, potentially indicating it's still the most widely ordered option. However, spicy_italian might represent a more premium pizza with higher per-slice pricing, even if it's ordered less frequently.The absence of pepperoni, often considered a top contender for popularity, is a significant gap. This could be due to a specific pizza chain's data or a timeframe where pepperoni sales dipped.Similarly, the lack of Hawaiian pizza, a popular choice, is intriguing. Cali_chicken could be a regional specialty with a higher price point, leading to its presence despite potentially lower overall orders.Spicy_italian and cali_chicken represent gourmet or specialty pizzas with a higher price tag compared to classic pizza. This could explain their revenue dominance despite potentially lower order volume.The data might be specific to a pizza chain that focuses on these specialty pizzas, or it could represent a specific timeframe where classic pizzas were on promotion or pepperoni sales were lower.
+
+## Order Distribution:
+
+### > Distribution based on Pizza price
+
+```{r}
+#Histogram of pizza prices
+ggplot(pizza_sales, aes(x=price)) + 
+  geom_histogram(binwidth = 1, fill="blue", color="white") +
+  labs(title="Distribution by Pizza Prices", x="Price", y="Frequency")
+  
+
+```
+
+The graph displays a histogram which shows the distribution of pizza prices. The x-axis represents the price of pizzas, with each bar representing the frequency of pizzas falling within a certain price range. The y-axis indicates the frequency.The most frequent price range for pizzas appears to be between $10 and $20. This suggests that a significant portion of pizzas sold within this price category. The graph shows a right-skewed distribution, meaning more pizzas are priced towards the lower end of the spectrum with a gradual decrease in frequency as the price goes higher. There are pizzas priced over $30, although these appear to be much less frequent than the ones between $10 and $20. The concentration of pizzas in the $10 to $20 range indicates that affordability might be a major consideration for many pizza consumers.There are likely many different pizza types offered within the $10 to $20 range, catering to various tastes and topping preferences while remaining budget-conscious. The presence of pizzas priced over $30 suggests a market for premium or gourmet pizzas with higher quality ingredients or unique recipes.
+
+### > Order count by Pizza Type
+
+```{r}
+
+# Order count by pizza types
+pizza_type_counts <- pizza_sales %>%
+  count(pizza_type_id) %>%
+  arrange(desc(n))
+
+
+
+# Visualizing most popular pizza types
+
+ggplot(data=pizza_type_counts, aes(x=reorder(pizza_type_id, n), y=n)) +
+  geom_bar(stat="identity", fill = "blue", alpha = 0.5) +
+  coord_flip() +
+  labs(title="Order count by Pizza Types", x="Pizza Type", y="Frequency")
+
+```
+
+The graph shows the order count for various pizza types, providing a strong indicator of customer preference. Classic pizza reigns supreme, followed by pepperoni, Hawaiian, then Thai chicken and barbecue chicken.Classic and pepperoni pizzas significantly outsell the other three types on the list. This dominance suggests a widespread preference for these basic flavor profiles.Classic pizza might represent a plain cheese pizza, appealing to a broad audience with no strong flavor preferences or dietary restrictions.Pepperoni is another crowd-pleasing option, with a familiar taste that many people enjoy.Despite being a controversial choice, Hawaiian pizza appears relatively popular, outselling both Thai chicken and barbecue chicken pizzas. Hawaiian pizza has been around for a longer time and may be more widely recognized by customers.The sweet and savory combination of pineapple and ham might be appealing to some customers who enjoy a departure from the standard cheese or pepperoni flavors.Thai chicken and barbecue chicken pizzas appear to be the least popular of the five types listed. Since these flavors are more specific, they might appeal to a narrower customer base with a preference for Thai or barbecue flavors. Classic and pepperoni pizzas more readily available across different pizza chains and restaurants compared to the other options.classic and pepperoni pizzas offered at a lower price point, making them a more budget-friendly option.
+
+### > Weekdays vs. Weekend
+
+```{r}
+library(ggplot2)
+
+# Convert the 'date' column to a Date object
+pizza_sales$date <- as.Date(pizza_sales$date)
+
+# Add a new column to classify weekdays and weekends
+pizza_sales$day_type <- ifelse(weekdays(pizza_sales$date) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+# Group the data by pizza_id, size, and day_type, then summarize the total quantity sold for each combination
+pizzas_by_day_type <- pizza_sales %>%
+  group_by(pizza_type_id, size, day_type) %>%
+  summarize(total_quantity_sold = sum(quantity), .groups = 'drop')  # Adding .groups = 'drop' to avoid the grouped df warning
+
+
+# Find the most popular pizzas by day type
+most_sold_pizzas <- pizzas_by_day_type %>%
+  arrange(day_type, desc(total_quantity_sold)) %>%
+  group_by(day_type) %>%
+  slice(1:5)  # Select the top most popular sold pizzas for each day type
+
+# Reorder pizza IDs based on total quantity sold in descending order
+most_sold_pizzas <- most_sold_pizzas %>%
+  group_by(day_type) %>%
+  mutate(pizza_type_id = reorder(pizza_type_id, desc(total_quantity_sold)))
+
+
+# Create a bar plot
+ggplot(most_sold_pizzas, aes(x = pizza_type_id, y = total_quantity_sold, fill = day_type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Pizza ID", y = "Total Quantity Sold", fill = "Day Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))  # Rotate x-axis labels by 20 degrees
+
+```
+
+The graph displays a clear preference for ordering pizza on weekdays compared to weekends. The red line representing weekday sales is consistently higher than the blue line indicating weekend sales. Weekdays tend to be busy for many people, and ordering pizza might be a convenient option for a quick meal. Weekends are often reserved for social gatherings or eating out at restaurants, leading to a decrease in pizza delivery orders. Weekday pizza purchases could be more frequent due to weekday lunch deals or special promotions offered by pizza chains. weekdays see a higher volume of pizza orders, there is still a noticeable presence of weekend orders. This suggests that pizza remains a popular food choice for casual dining at home during weekends as well. People might order pizza for brunch on weekends, or for late-night meals after socializing or going out. It would be interesting to see a more granular breakdown of the data to understand if there are variations in order volume throughout the weekdays and weekends. Weekdays might see a lunch-time peak and an evening dinner peak, while weekends could show a late-night ordering surge.
+
+### > Seasonal Order Distribution
+
+```{r}
+# Define a function to map months to seasons
+month_to_season <- function(month) {
+  if (month %in% c("March", "April", "May")) {
+    return("Spring")
+  } else if (month %in% c("June", "July", "August")) {
+    return("Summer")
+  } else if (month %in% c("September", "October", "November")) {
+    return("Fall")
+  } else {
+    return("Winter")
+  }
+}
+
+# Extract month from the date column in pizza_sales dataset
+pizza_sales$month <- format(as.Date(pizza_sales$date), "%B")
+
+# Map months to seasons
+pizza_sales$season <- sapply(pizza_sales$month, month_to_season)
+
+# Group the data by season and summarize the total quantity sold for each combination
+seasonal_orders <- pizza_sales %>%
+  group_by(season) %>%
+  summarize(total_quantity_sold = sum(quantity))
+
+# Visualize the seasonal trends using a bar plot
+library(ggplot2)
+ggplot(seasonal_orders, aes(x = season, y = total_quantity_sold)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Season", y = "Total Quantity Sold", title = "Seasonal Trends in Pizza Orders") +
+  theme_minimal()
+
+# Based on the seasonal trends, businesses can prepare for fluctuating demand by adjusting inventory, staffing levels, and marketing strategies accordingly for each season.
+
+
+```
+
+The graph reveals a potential seasonal trend in pizza orders across the globe, with a possible slight increase in orders during warmer months (spring and summer) compared to colder months (fall and winter). However, the difference appears subtle, suggesting pizza consumption might be relatively consistent throughout the year. Warmer weather might encourage people to gather outdoors for social events like picnics or barbecues, potentially leading to a slight increase in pizza orders as a convenient finger food for these gatherings.With longer daylight hours in summer, people might have more time for social gatherings or outdoor activities that could involve pizza as a meal option.Pizza might be a food option enjoyed consistently throughout the year, regardless of the season.Seasonal trends might vary significantly depending on the specific region and its cultural preferences. Countries with strong pizza traditions might maintain consistent consumption patterns year-round.
+
+```{r}
+
+# Most popular Pizzas in every season:
+
+# Define a function to map months to seasons
+month_to_season <- function(month) {
+  if (month %in% c("March", "April", "May")) {
+    return("Spring")
+  } else if (month %in% c("June", "July", "August")) {
+    return("Summer")
+  } else if (month %in% c("September", "October", "November")) {
+    return("Fall")
+  } else {
+    return("Winter")
+  }
+}
+
+# Extract month from the date column
+pizza_sales$month <- format(as.Date(pizza_sales$date), "%B")
+
+# Map months to seasons
+pizza_sales$season <- sapply(pizza_sales$month, month_to_season)
+
+# Group the data by season, pizza type, and summarize the total quantity sold for each combination
+seasonal_pizzas <- pizza_sales %>%
+  group_by(season, pizza_id) %>%
+  summarize(total_quantity_sold = sum(quantity)) %>%
+  arrange(desc(total_quantity_sold))
+
+# Print the most sold pizzas for each season
+most_sold_seasonal_pizzas <- seasonal_pizzas %>%
+  group_by(season) %>%
+  slice(1:5)
+
+# Print the result
+print(most_sold_seasonal_pizzas)
+
+
+```
+
+There are 20 rows and 3 columns.The first column, titled "season", groups the data into 4 categories. These categories represent different seasons, but the specific names of the seasons are not provided (e.g., Fall, Winter, Spring, Summer).The second column, titled "pizza_id", contains unique identifiers for each pizza type. The format suggests these IDs combine a description (e.g., big_meat) with a code (e.g., 467).The third column, titled "total_quantity_sold", shows the number of pizzas sold for each pizza type within a specific season and the numbers represent the total quantity sold.
+The table allows to compare the total quantity sold for various pizza types within each season.
+For example, within the first season (represented by the first group label) "big_meat_s467" was the highest-selling pizza type with a total quantity of 467 sold, comparing this to other pizzas in the same season, like "thai_ckn_l354" (total quantity of 354) or "five_cheese_l337" (total quantity of 337).
+
+## Revenue Distribution:
+
+### > Total revenue generated: 
+```{r}
+
+# We are grouping the data by pizza_type_id, size, and order_id, then calculate the total revenue 
+revenue_generated <- pizza_sales %>%
+  mutate(total_revenue = quantity * price) %>%  
+  group_by(pizza_type_id, size, order_id) %>%
+  summarize(total_revenue = sum(total_revenue), .groups = 'drop')  
+
+
+total_revenue <- sum(revenue_generated$total_revenue)
+print(total_revenue )
+
+```
+It calculates the total revenue generated from pizza sales in data set. It first calculates the revenue for each pizza sold by multiplying the quantity by the price then it groups the data by unique combinations of pizza type, size, and order ID for each order it sums up the individual pizza revenues to get the total revenue for that order and it sums the total revenue from all orders to get the overall revenue generated from pizza sales.[1] 817860 indicates that the total revenue generated from pizza sales.
+
+
+
+
+
+### > Total Sales by Pizza type
+
+```{r}
+
+# Group the data by pizza_type_id, then calculate total quantity sold and revenue
+pizza_revenue <- pizza_sales %>%
+  mutate(total_revenue = quantity * price) %>%  # Calculate the revenue for each pizza sold
+  group_by(pizza_type_id) %>%
+  summarize(total_quantity_sold = sum(quantity),
+            total_revenue = sum(total_revenue),
+            .groups = 'drop')  # Adding .groups = 'drop' to avoid the grouped df warning
+
+# Print the result
+print(pizza_revenue)
+pizza_sales_analysis <- pizza_sales %>%
+  group_by(pizza_type_id) %>%
+  summarise(total_sales = sum(price * quantity, na.rm = TRUE),
+            average_sale_per_order = mean(price * quantity, na.rm = TRUE),
+            order_count = n()) %>%
+  arrange(desc(total_sales))
+
+library(ggplot2)
+
+# Total sales by pizza type
+ggplot(pizza_sales_analysis, aes(x=reorder(pizza_type_id, total_sales), y=total_sales)) +
+  geom_bar(stat="identity", fill="darkorange") +
+  coord_flip() +
+  labs(title="Total Sales by Pizza Type", x="Pizza Type", y="Total Sales ($)")
+
+```
+
+The graph displays the total sales for various pizza types, providing insights into customer preferences. Classic pizza reigns supreme, followed by pepperoni, then Hawaiian, Thai chicken, and barbecue chicken. Classic pizza tops the chart by a significant margin, suggesting a widespread preference for this basic flavor profile. It likely represents a plain cheese pizza, appealing to a broad audience with no strong flavor preferences or dietary restrictions.Pepperoni follows closely behind as another crowd-pleasing option with a familiar taste that many people enjoy.Hawaiian pizza, despite being a more controversial choice, appears relatively popular, outsselling both Thai chicken and barbecue chicken pizzas.
+
+Thw table allows to analyze both the sales volume (quantity sold) and revenue generated for various pizza types.
+by identify the most popular pizzas in terms of quantity sold by looking at the highest values in the "total_quantity_sold" column. For example, if "classic_dlx" has the highest number (2453), it suggests this pizza type sold the most units.
+By analyzing the "total_revenue" column, can understand which pizza types generate the most revenue. This doesn't necessarily correlate directly with sales volume. A pizza with a higher price point and lower sales volume might generate more revenue than a high-volume, lower-priced pizza.The data doesn't explicitly show pizza prices, but the "total_revenue" column suggests price variations between pizzas. A pizza with a higher price, even if it sells less frequently, could generate more revenue than a popular, lower-priced pizza.
+
+### > Hourly Order Value Analysis for the entire year 
+
+```{r}
+
+pizza_sales$time <- as.POSIXct(pizza_sales$time, format="%H:%M:%S")
+pizza_sales$hour_of_day <- format(pizza_sales$time, "%H")
+
+# We are grouping by the extracted hour and calculating the total order value for each hour
+hourly_order_value <- pizza_sales %>%
+  group_by(hour_of_day) %>%
+  summarise(total_order_value = sum(price * quantity, na.rm = TRUE),
+            average_order_value = mean(price * quantity, na.rm = TRUE),
+            count_orders = n())
+
+
+hourly_order_value <- hourly_order_value %>%
+  arrange(desc(total_order_value))
+
+
+ggplot(hourly_order_value, aes(x=hour_of_day, y=total_order_value, group=1)) +
+  geom_line() +
+  geom_point() +
+  labs(title="Total Order Value by Hour of Day",
+       x="Hour of Day", y="Total Order Value ($)")
+```
+
+The graph shows the total order value for pizzas sold throughout the day, broken down by hour. It represents the hour of the day when the pizza order was placed, ranging from 0 (midnight) to 23 (11 pm) and the total revenue generated from pizza sales in each hour.It displays a line connecting data points, which represent the total order value for each hour. The line helps visualize the overall trend in order value throughout the day.
+Peak Hours: The graph clearly shows a peak in total order value around dinner time. The highest point on the line, likely between 6 PM and 8 PM, indicates the hour with the most significant revenue from pizza sales.
+Night-time Trend: Following the peak, the line shows a significant decrease in total order value throughout the late-night and early morning hours. This suggests that pizza orders are less frequent during these times.
+Morning and Afternoon: The graph likely shows a gradual increase in total order value as the day progresses towards the peak hours. There may also be a slight increase in orders towards the afternoon hours, potentially for lunch.
+
+
+
+### > Prize Distribution by pizza size
+
+```{r}
+library(ggplot2)
+
+
+# Boxplot of pizza prices by size
+ggplot(pizza_sales, aes(x=size, y=price, fill=size)) + 
+  geom_boxplot() +
+  labs(title="Price Distribution across different Pizza sizes", x="Size", y="Price")
+```
+
+From the above box plot we can see that the mean prices of L,M,S size pizzas are relatively less than the mean prices of XL and XXL size pizzas.The mean prices of XL and XXL size pizzas are 25.5 USD and 36.0 USD respectively. This could also be a reason for the low order count for these pizza sizes.
+
+## Statistical testing 
+
+### > Pearson's Chi-squared test, ANOVA test and t-test
+
+**Pearson's Chi-squared test between pizza_type_id and Size**
+
+```{r}
+
+
+# Correlation matrix for numerical variables
+cor(select(pizza_sales, where(is.numeric)))
+
+# Chi-square test for independence between categorical variables (e.g., pizza type and size)
+chisq.test(table(pizza_sales$pizza_type_id, pizza_sales$size))
+```
+Correlation Matrix for Numerical Variables:
+The cor() function calculates the correlation matrix for numerical variables in the 'pizza_sales' dataset. Correlation analysis helps to understand the relationship between pairs of numerical variables. The output is a matrix where each cell represents the correlation coefficient between two variables.
+
+<p>
+
+
+The Pearson's Chi-squared test is a statistical test that determines if there's a significant association between two categorical variables. In this instance, the test was conducted to examine the relationship between "pizza_type_id" and "Size".
+
+Null hypothesis ($H_0$)- No dependence between the two variables <br> Alternate hypothesis ($H_1$) - Casual dependence exists between the two variables
+
+1. **X-squared**: The chi-squared statistic is 33280, This value indicates a strong association between the variables.
+
+2. **df**: Degrees of freedom, which is 124 in this case. It refers to the number of independent pieces of information used to estimate a parameter (like a mean) in statistical test and it represents the number of these independent pieces of information used for the analysis.
+
+3.  **p-value**: The p-value is less than 2.2e-16, which is virtually zero. A p-value this low suggests that the observed data is highly inconsistent with the assumption of independence between the two variables.Thus we reject the null hypothesis and adopt the alternate hypothesis.
+
+</p>
+
+
+**ANOVA test for Price vs. size**
+```{r}
+# ANOVA to compare means across different pizza sizes (assuming another numerical variable, like price)
+aov_result <- aov(price ~ size, data=pizza_sales)
+summary(aov_result)
+```
+ANOVA (Analysis of Variance):
+The aov() function conducts an ANOVA to compare means across different groups. In this case, it compares the mean 'price' of pizzas across different 'size' categories. ANOVA assesses whether there are statistically significant differences in the means of a numerical variable across different levels of a categorical variable. The output includes ANOVA table with F-statistic, degrees of freedom, and p-value.
+
+
+These statistical tests help to uncover relationships, associations, and differences within the data, providing valuable insights for decision-making and further analysis.
+
+## Increase in revenue percentage
+
+```{r}
+
+specified_types <- c("classic_dlx", "bbq_ckn", "hawiian", "pepperoni", "thai_ckn")
+
+# Calculate the original revenue
+pizza_sales$original_revenue <- pizza_sales$price * pizza_sales$quantity
+
+# Create 'new_price' with a condition to add 3 for specified types
+pizza_sales <- pizza_sales %>%
+  mutate(new_price = ifelse(pizza_type_id %in% specified_types, price + 3, price))
+
+# Calculate the new revenue
+pizza_sales$new_revenue <- pizza_sales$new_price * pizza_sales$quantity
+
+# Compute the total original and new revenues
+total_original_revenue <- sum(pizza_sales$original_revenue)
+total_new_revenue <- sum(pizza_sales$new_revenue)
+
+# Calculate the percentage increase from original to new revenue
+revenue_increase_percentage <- ((total_new_revenue - total_original_revenue) / total_original_revenue) * 100
+
+# Print the results
+print(paste("Total Original Revenue:", total_original_revenue))
+print(paste("Total New Revenue:", total_new_revenue))
+print(paste("Revenue Increase Percentage:", revenue_increase_percentage))
+
+```
+
+For the best selling pizza types we tried to increase the prize by 3 USD and we could see that there is an increase of 3.5% in overall revenue percentage.
+
+
+
+## Conclusion:
+
+
+Initially we wanted to get answers for a few questions to better understand our data in order to make strategic decisions to uplift pizza sales.
+These are the questions we wanted to find answers for:
+ 
+* What are the most popular pizza types and sizes ?
+ 
+* What is the relation between order values and time of day ?
+ 
+* What are the Seasonal trends in pizza ordering ?
+ 
+* And finally, how these insights translate into actionable strategies for targeted marketing and promotional offers ?
+
+Through this detailed data analysis we found answers for all the smart questions.
+
+After a thorough analysis on our pizza sales data we have acquired valuable insights from it that helped us to make strategic decisions to improve the business. 
+
+* Seasonal preferences show stable year-round demand, emphasizing the importance of consistent quality and service.
+
+* The price sensitivity analysis revealed an opportunity: a slight $3 increase on popular pizzas could boost revenue by 3.5%.
+
+* Understanding order value by time indicates room for improvement during slower hours, suggesting creative promotions to uplift sales.
+
+Our data-driven approach reveals pizza ordering patterns, customer preferences and behaviors, guiding actions like targeted promotions, discounts and pricing adjustments. By aligning with these insights, we can suggest ways to the pizza stores that could enhance profitability.
+
+## Linear Regression
+```{r}
+#linear regression
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+
+# Creating a model where 'price' is dependent on 'size' and 'quantity'
+# Convert size to a factor if it's not already
+pizza_sales$size <- as.factor(pizza_sales$size)
+
+# Fit the linear model
+model <- lm(new_price ~ size + quantity, data = pizza_sales)
+
+# Summary of the model to view coefficients and statistics
+summary(model)
+
+# Optionally, visualize the relationship
+# Scatter plot of quantity vs price colored by size
+ggplot(pizza_sales, aes(x=quantity, y=new_price, color=size)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  labs(title="Effect of Quantity and Size on Pizza Price",
+       x="Quantity",
+       y="New_Price")
+
+```
+
+
+
+
