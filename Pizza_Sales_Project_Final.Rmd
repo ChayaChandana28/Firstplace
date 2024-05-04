@@ -563,22 +563,17 @@ Our data-driven approach reveals pizza ordering patterns, customer preferences a
 ```{r}
 #linear regression
 
-# Load necessary libraries
 library(dplyr)
 library(ggplot2)
 
 
 # Creating a model where 'price' is dependent on 'size' and 'quantity'
-# Convert size to a factor if it's not already
 pizza_sales$size <- as.factor(pizza_sales$size)
 
-# Fit the linear model
 model <- lm(new_price ~ size + quantity, data = pizza_sales)
 
-# Summary of the model to view coefficients and statistics
 summary(model)
 
-# Optionally, visualize the relationship
 # Scatter plot of quantity vs price colored by size
 ggplot(pizza_sales, aes(x=quantity, y=new_price, color=size)) +
   geom_point() +
@@ -589,6 +584,36 @@ ggplot(pizza_sales, aes(x=quantity, y=new_price, color=size)) +
 
 ```
 
+## Time Series Analysis
 
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(forecast)
+
+# Converting the date column to a Date type
+pizza_sales$date <- as.Date(pizza_sales$date)
+
+# Aggregating sales by date
+sales_ts <- pizza_sales %>%
+  group_by(date) %>%
+  summarise(total_sales = sum(quantity))
+
+# Creating a time series object
+sales_ts <- ts(sales_ts$total_sales, frequency = 7)  # Assuming weekly data
+
+# Plotting the time series
+autoplot(sales_ts, main = "Pizza Sales Time Series") +
+  xlab("Date") +
+  ylab("Sales")
+
+# Decompose the time series into trend, seasonal, and residual components
+decomposed_sales <- decompose(sales_ts)
+
+# Plotting the decomposed components
+autoplot(decomposed_sales) +
+  labs(title = "Decomposition of Pizza Sales Time Series")
+```
 
 
